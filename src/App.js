@@ -1,25 +1,27 @@
-import logo from './logo.svg';
-import './App.css';
+import {
+  Route,
+  RouterProvider,
+  Routes,
+  createBrowserRouter,
+} from "react-router-dom";
+import LandingPage from "./containers/landing_page/LandingPage";
+import MeetingRoom from "./containers/meeting_room/MeetingRoom";
 
-function App() {
+function Root() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/:meetId" element={<MeetingRoom />} />
+      </Routes>
     </div>
   );
+}
+
+const router = createBrowserRouter([{ path: "*", Component: Root }]);
+
+function App() {
+  return <RouterProvider router={router} />;
 }
 
 export default App;
