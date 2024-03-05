@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import io from "socket.io-client";
-import { COMMON_CONSTANTS, SOCKET_EVENTS } from "../../utils/constants";
+import { SOCKET_EVENTS } from "../../utils/constants";
 import styles from "./MeetingRoom.module.css";
 import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
 import { MdScreenShare, MdStopScreenShare, MdCallEnd } from "react-icons/md";
@@ -162,7 +162,7 @@ function MeetingRoom() {
 
     if (socketRef?.current) return;
 
-    socketRef.current = io.connect(COMMON_CONSTANTS.SOCKET_URL);
+    socketRef.current = io.connect(process.env.REACT_APP_SOCKET_URL);
 
     navigator.mediaDevices
       .getUserMedia({ audio: true, video: true })
