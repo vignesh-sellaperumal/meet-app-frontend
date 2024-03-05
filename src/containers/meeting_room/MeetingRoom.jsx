@@ -158,7 +158,7 @@ function MeetingRoom() {
   };
 
   useEffect(() => {
-    console.log("meetIdHere-->", meetId);
+    console.log("meetIdHere-->", meetId, process.env.REACT_APP_SOCKET_URL);
 
     if (socketRef?.current) return;
 
