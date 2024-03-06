@@ -3,7 +3,13 @@ import { useNavigate, useParams } from "react-router";
 import io from "socket.io-client";
 import { SOCKET_EVENTS } from "../../utils/constants";
 import styles from "./MeetingRoom.module.css";
-import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
+import {
+  FaMicrophone,
+  FaMicrophoneSlash,
+  FaVideo,
+  FaVideoSlash,
+  FaUserCircle,
+} from "react-icons/fa";
 import { MdScreenShare, MdStopScreenShare, MdCallEnd } from "react-icons/md";
 
 let peer = null;
@@ -14,7 +20,9 @@ function MeetingRoom() {
   const navigate = useNavigate();
 
   const [isUserMute, setIsUserMute] = useState(false);
+  const [isUserVideoHide, setIsUserVideoHide] = useState(false);
   const [isPartnerMute, setIsPartnerMute] = useState(false);
+  const [isPartnerVideoHide, setIsPartnerVideoHide] = useState(false);
   const [isScreenShared, setIsScreenShared] = useState(false);
   const [showOtherUser, setShowOtherUser] = useState(false);
 
@@ -149,6 +157,10 @@ function MeetingRoom() {
       setIsPartnerMute(micStatus);
     });
 
+    socketRef.current.on(SOCKET_EVENTS.TOGGLE_VIDEO, (videoStatus) => {
+      setIsPartnerVideoHide(videoStatus);
+    });
+
     socketRef.current.on(SOCKET_EVENTS.USER_LEAVE, () => {
       peerRef.current = null;
       otherUser.current = null;
@@ -156,28 +168,6 @@ function MeetingRoom() {
       setShowOtherUser(false);
     });
   };
-
-  useEffect(() => {
-    console.log("meetIdHere-->", meetId, process.env.REACT_APP_SOCKET_URL);
-
-    if (socketRef?.current) return;
-
-    socketRef.current = io.connect(process.env.REACT_APP_SOCKET_URL);
-
-    navigator.mediaDevices
-      .getUserMedia({ audio: true, video: true })
-      .then((stream) => {
-        console.log("stream: ", stream);
-        userStream.current = stream;
-        userVideoStream.current.srcObject = stream;
-        getInitialSocketUtils();
-      })
-      .catch((error) => {
-        console.log("error: ", error);
-        userStream.current = null;
-        getInitialSocketUtils();
-      });
-  }, []);
 
   const toggleMyMic = (isMuted) => {
     const payload = {
@@ -204,6 +194,89 @@ function MeetingRoom() {
     socketRef.current.emit(SOCKET_EVENTS.TOGGLE_MIC, payload);
   };
 
+  const toggleMyVideo = (isHidden) => {
+    const payload = {
+      target: otherUser.current,
+      videoStatus: isHidden,
+    };
+
+    if (userStream.current) {
+      if (isHidden) {
+        let vidTrack = userStream.current?.getVideoTracks()?.[0];
+
+        if (peerRef.current) {
+          peerRef.current?.getSenders?.()?.find((s) => {
+            if (s.track?.kind === vidTrack?.kind) {
+              s.track?.stop?.();
+              return true;
+            }
+            return false;
+          });
+        }
+
+        userStream.current?.getTracks?.()?.find((track) => {
+          if (track?.kind === vidTrack?.kind) {
+            track?.stop?.();
+            return true;
+          }
+          return false;
+        });
+
+        userStream.current.getVideoTracks()[0].enabled = !isHidden;
+        socketRef.current.emit(SOCKET_EVENTS.TOGGLE_VIDEO, payload);
+      } else {
+        navigator.mediaDevices
+          .getUserMedia({ video: true })
+          .then((stream) => {
+            let vidTrack = stream?.getVideoTracks()[0];
+
+            const host = userStream.current
+              ?.getTracks?.()
+              ?.find((track) => track?.kind === vidTrack?.kind);
+
+            if (peerRef.current) {
+              const sender = peerRef.current
+                ?.getSenders?.()
+                ?.find((s) => s.track?.kind === vidTrack?.kind);
+
+              sender.replaceTrack(vidTrack);
+            }
+
+            userStream.current?.removeTrack(host);
+            userStream.current?.addTrack(vidTrack);
+            socketRef.current.emit(SOCKET_EVENTS.TOGGLE_VIDEO, payload);
+          })
+          .catch((error) => {
+            console.log("error: ", error);
+          });
+      }
+    }
+
+    setIsUserVideoHide(isHidden);
+  };
+
+  useEffect(() => {
+    console.log("meetIdHere-->", meetId, process.env.REACT_APP_SOCKET_URL);
+
+    if (socketRef?.current) return;
+
+    socketRef.current = io.connect(process.env.REACT_APP_SOCKET_URL);
+
+    navigator.mediaDevices
+      .getUserMedia({ audio: true, video: true })
+      .then((stream) => {
+        console.log("stream: ", stream);
+        userStream.current = stream;
+        userVideoStream.current.srcObject = stream;
+        getInitialSocketUtils();
+      })
+      .catch((error) => {
+        console.log("error: ", error);
+        userStream.current = null;
+        getInitialSocketUtils();
+      });
+  }, []);
+
   const handleShareScreen = async () => {
     if (peerRef.current) {
       navigator.mediaDevices
@@ -224,6 +297,14 @@ function MeetingRoom() {
           sender.replaceTrack(displayMediaStream);
           userVideoStream.current.srcObject = stream;
           setIsScreenShared(true);
+
+          const payload = {
+            target: otherUser.current,
+            videoStatus: false,
+          };
+
+          socketRef.current.emit(SOCKET_EVENTS.TOGGLE_VIDEO, payload);
+          setIsUserVideoHide(false);
         })
         .catch((err) => console.log(err));
     } else {
@@ -239,6 +320,14 @@ function MeetingRoom() {
     sender.replaceTrack(videoTrack);
     userVideoStream.current.srcObject = userStream.current;
     setIsScreenShared(false);
+
+    const payload = {
+      target: otherUser.current,
+      videoStatus: true,
+    };
+
+    socketRef.current.emit(SOCKET_EVENTS.TOGGLE_VIDEO, payload);
+    setIsUserVideoHide(true);
   };
 
   const handleEndCall = () => {
@@ -260,6 +349,11 @@ function MeetingRoom() {
               : styles.PartnerVideoContainer
           }
         >
+          {isUserVideoHide && (
+            <div className={styles.NoVideoTag}>
+              <FaUserCircle color="white" size={100} />
+            </div>
+          )}
           <video
             autoPlay
             muted
@@ -269,6 +363,11 @@ function MeetingRoom() {
         </div>
         {showOtherUser && (
           <div className={styles.PartnerVideoContainer}>
+            {isPartnerVideoHide && (
+              <div className={styles.NoVideoTag}>
+                <FaUserCircle color="white" size={100} />
+              </div>
+            )}
             <video
               autoPlay
               ref={partnerVideoStream}
@@ -279,6 +378,21 @@ function MeetingRoom() {
       </div>
 
       <div>
+        {isUserVideoHide ? (
+          <button
+            className={styles.ActionButtons}
+            onClick={() => toggleMyVideo(!isUserVideoHide)}
+          >
+            <FaVideoSlash />
+          </button>
+        ) : (
+          <button
+            className={styles.ActionButtons}
+            onClick={() => toggleMyVideo(!isUserVideoHide)}
+          >
+            <FaVideo />
+          </button>
+        )}
         {isUserMute ? (
           <button
             className={styles.ActionButtons}
