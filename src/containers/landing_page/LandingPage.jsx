@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import styles from "./LandingPage.module.css";
 import logo from "../../assets/logo.jpg";
 import twoPerson from "../../assets/two-person.png";
@@ -6,6 +6,8 @@ import { useNavigate } from "react-router";
 
 function LandingPage() {
   const navigate = useNavigate();
+
+  const [meetingCode, setMeetingCode] = useState();
 
   const generateMeetingID = (length) => {
     const characters = "abcdefghijklmnopqrstuvwxyz";
@@ -28,6 +30,14 @@ function LandingPage() {
     navigate(`/${generatedMeetingID}`);
   };
 
+  const joinExistingRoom = () => {
+    navigate(`/${meetingCode}`);
+  };
+
+  const handleMeetingCodeChange = (e) => {
+    setMeetingCode(e.target.value);
+  };
+
   const headerContainer = (
     <div className={styles.HeaderContainer}>
       <img src={logo} alt="app-logo" className={styles.LogoContainer} />
@@ -40,8 +50,18 @@ function LandingPage() {
   );
   const rightContainer = (
     <div className={styles.RightContainer}>
+      <div>
+        <input
+          placeholder="Enter your Meeting Code"
+          value={meetingCode}
+          onChange={handleMeetingCodeChange}
+          className={styles.MeetingCodeInput}
+        />
+        <span onClick={joinExistingRoom} className={styles.JoinMeeting}>Join</span>
+      </div>
+      <span className={styles.OrText}>or</span>
       <button className={styles.JoinNowButton} onClick={handleJoinRoom}>
-        Create a Meeting
+        Create a New Meeting
       </button>
     </div>
   );

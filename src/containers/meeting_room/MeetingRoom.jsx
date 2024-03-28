@@ -377,7 +377,7 @@ function MeetingRoom() {
         )}
       </div>
 
-      <div>
+      <div className={styles.ActionButtonsContainer}>
         {isUserVideoHide ? (
           <button
             className={styles.ActionButtons}
